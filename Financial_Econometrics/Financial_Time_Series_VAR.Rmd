@@ -15,8 +15,7 @@ rm(list=ls())
 library(readr)
 library(dplyr)
 library(rugarch)
-setwd("~/Downloads")
-data <- read_csv("L3harris (1).csv")
+data <- L3harris
 head(data)
 data$Close <- as.numeric(gsub("[$]", "", data$`Close/Last`))
 data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
@@ -50,10 +49,7 @@ for (conf in conf_levels) {
 
 VaR_matrix <- rbind(
   Historical = c(VaR_1d_hist, VaR_5d_hist),
-  GARCH_11 = c(VaR_1d, VaR_5d),
-  AR_GARCH_11 = c(VaR_1d_ar, VaR_5d_ar),
-  AR_GARCH_11_t = c(VaR_1d_t, VaR_5d_t),
-  AR_EGARCH_11_t = c(VaR_1d_egarch, VaR_5d_egarch)
+  GARCH_11 = c(VaR_1d, VaR_5d)
 )
 
 colnames(VaR_matrix) <- as.vector(outer(conf_labels, c("1d", "5d"), paste, sep = "_"))
@@ -250,8 +246,7 @@ print(coef(fit_ar_egarch_t))
 library(readr)
 library(dplyr)
 library(rugarch)
-setwd("~/Downloads")
-data <- read_csv("NorthrupGrumman.csv")
+data <- NorthrupGrumman
 head(data)
 data$Close <- as.numeric(gsub("[$]", "", data$`Close/Last`))
 data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
