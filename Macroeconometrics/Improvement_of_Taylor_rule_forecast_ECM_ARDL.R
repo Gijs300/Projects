@@ -12,14 +12,14 @@ library(remotes)
 library(oosanalysis)
 
 #Load data
-Fedfund <- read_csv("C:/Users/gijsn/OneDrive/Documents/Macroeconometrics/Fedfund.csv")
+Fedfund <- read_csv("C:/Users/gijsn/Desktop/Documents/Macroeconometrics/Fedfund.csv")
 Fedfunds <- Fedfundsrate[, 2]
 ts_fedfunds <- ts(Fedfunds, start = 1959, frequency = 1)
 
-GDPCA <- read_excel("C:/Users/gijsn/OneDrive/Documents/Macroeconometrics/GDPCA.xlsx")
+GDPCA <- read_excel("C:/Users/gijsn/Desktop/Documents/Macroeconometrics/GDPCA.xlsx")
 GDP <- GDPCA[, 2]
 
-Inflat <- read_excel("C:/Users/gijsn/OneDrive/Documents/Macroeconometrics/Inflat.xlsx")
+Inflat <- read_excel("C:/Users/gijsn/Desktop/Documents/Macroeconometrics/Inflat.xlsx")
 inflation <- Inflat[, 2]
 
 ts_gdp <- ts(GDP, start = 1959, end = 2024, frequency = 1)
@@ -235,3 +235,4 @@ for (p in 1:max_lags) {
   }
 }
 p_val
+
