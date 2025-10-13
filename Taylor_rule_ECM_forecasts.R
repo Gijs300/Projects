@@ -37,7 +37,7 @@ summary(test3)
 adf.test(resid)
 kpss_test <- kpss.test(resid, null = "Level")
 
-#Split data
+#Split data into test and training sets
 train.start <- 1959
 train.end <- 2018
 test.start <- 2019
@@ -204,6 +204,7 @@ for (model_name in names(forecast_results)) {
 
 error_summary
 
+#Clark and West test for predictive accuracy of nested models                
 act <- test.fedfunds
 tr <- ts(c(5.38, 4.01, 8.21, 11.39, 7.43, 6.34), start = test.start, frequency = 1)
 m1 <- tr
