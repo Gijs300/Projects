@@ -12,16 +12,23 @@ rm(list=ls())
 
 
 ```{r}
+#Load packages
 library(readr)
 library(dplyr)
 library(rugarch)
-data <- L3harris
+
+#Load data
+data <- "C:/Users/gijsn/Desktop/Documents/L3harris.xlsx"
+data<-read_excel(data)
 head(data)
+
+#Calculate log returns
 data$Close <- as.numeric(gsub("[$]", "", data$`Close/Last`))
 data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
 Returns <- diff(log(data$Close))
 returns <- na.omit(Returns)
 head(returns)
+
 # Position size and confidence levels
 position_value <- 10000000
 conf_levels <- c(0.90, 0.95, 0.99)
@@ -243,16 +250,18 @@ print(coef(fit_ar_egarch_t))
 
 
 ```{r}
-library(readr)
-library(dplyr)
-library(rugarch)
-data <- NorthrupGrumman
+#Load data
+data <- "C:/Users/gijsn/Desktop/Documents/Northropgrumman.xlsx"
+data<-read_excel(data)
 head(data)
+
+#Calculate log returns
 data$Close <- as.numeric(gsub("[$]", "", data$`Close/Last`))
 data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
 Returns <- diff(log(data$Close))
 returns <- na.omit(Returns)
 head(returns)
+
 # Position size and confidence levels
 position_value <- 10000000
 conf_levels <- c(0.90, 0.95, 0.99)
