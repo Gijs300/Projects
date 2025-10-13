@@ -1,0 +1,476 @@
+---
+title: "MacroAss2"
+output: html_document
+date: "2025-04-30"
+---
+
+```{r}
+rm(list=ls())    
+
+```
+
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(rugarch)
+setwd("~/Downloads")
+data <- read_csv("L3harris (1).csv")
+head(data)
+data$Close <- as.numeric(gsub("[$]", "", data$`Close/Last`))
+data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
+Returns <- diff(log(data$Close))
+returns <- na.omit(Returns)
+head(returns)
+# Position size and confidence levels
+position_value <- 10000000
+conf_levels <- c(0.90, 0.95, 0.99)
+conf_labels <- c("90", "95", "99")
+```
+
+```{r}
+# ===== Historical Parametric VaR (Normal distribution) =====
+# Based on historical mean and standard deviation
+
+mu_hist <- mean(returns)
+sigma_hist <- sd(returns)
+
+VaR_1d_hist <- c()
+VaR_5d_hist <- c()
+
+for (conf in conf_levels) {
+  z <- qnorm(conf)
+  var_1d <- abs(position_value * (mu_hist + z * sigma_hist))
+  var_5d <- abs(position_value * (5 * mu_hist + z * sigma_hist * sqrt(5)))
+  VaR_1d_hist <- c(VaR_1d_hist, var_1d)
+  VaR_5d_hist <- c(VaR_5d_hist, var_5d)
+}
+
+
+VaR_matrix <- rbind(
+  Historical = c(VaR_1d_hist, VaR_5d_hist),
+  GARCH_11 = c(VaR_1d, VaR_5d),
+  AR_GARCH_11 = c(VaR_1d_ar, VaR_5d_ar),
+  AR_GARCH_11_t = c(VaR_1d_t, VaR_5d_t),
+  AR_EGARCH_11_t = c(VaR_1d_egarch, VaR_5d_egarch)
+)
+
+colnames(VaR_matrix) <- as.vector(outer(conf_labels, c("1d", "5d"), paste, sep = "_"))
+VaR_df <- as.data.frame(round(VaR_matrix, 2))
+
+cat("\n========== All VaR Results (EUR) ==========\n")
+print(VaR_df)
+
+```
+
+
+```{r}
+# Specify GARCH(1,1) model with constant mean and normal distribution
+spec_garch <- ugarchspec(
+  mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  distribution.model = "norm"
+)
+
+# Fit model
+fit_garch <- ugarchfit(spec_garch, returns)
+
+# Forecast next 5 days
+forecast <- ugarchforecast(fit_garch, n.ahead = 5)
+sigma_forecast <- sigma(forecast)
+sigma_1d <- sigma_forecast[1]
+sigma_5d <- sqrt(sum(sigma_forecast^2))  # sum of variances
+
+# Compute VaR for each confidence level
+VaR_1d <- c()
+VaR_5d <- c()
+
+for (conf in conf_levels) {
+  z <- qnorm(conf)  # left-tail quantile (e.g., qnorm(0.01) = -2.33 for 99%)
+  var_1d <- abs(position_value * z * sigma_1d)
+  var_5d <- abs(position_value * z * sigma_5d)
+  VaR_1d <- c(VaR_1d, var_1d)
+  VaR_5d <- c(VaR_5d, var_5d)
+}
+
+# Display results
+VaR_matrix <- matrix(c(VaR_1d, VaR_5d), nrow = 1)
+colnames(VaR_matrix) <- as.vector(outer(conf_labels, c("1d", "5d"), paste, sep = "_"))
+rownames(VaR_matrix) <- c("GARCH(1,1)")
+VaR_df <- as.data.frame(round(VaR_matrix, 2))
+
+cat("====== GARCH(1,1) VaR Results (EUR) ======\n")
+print(VaR_df)
+
+```
+
+
+
+
+```{r}
+# AR(1)-GARCH(1,1), Normal distribution
+spec_ar_garch <- ugarchspec(
+  mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  distribution.model = "norm"
+)
+
+fit_ar_garch <- ugarchfit(spec_ar_garch, returns)
+forecast_ar_garch <- ugarchforecast(fit_ar_garch, n.ahead = 5)
+sigma_ar_garch <- sigma(forecast_ar_garch)
+sigma_1d_ar <- sigma_ar_garch[1]
+sigma_5d_ar <- sqrt(sum(sigma_ar_garch^2))
+
+VaR_1d_ar <- c()
+VaR_5d_ar <- c()
+
+for (conf in conf_levels) {
+  z <- qnorm(conf)
+  var_1d <- abs(position_value * z * sigma_1d_ar)
+  var_5d <- abs(position_value * z * sigma_5d_ar)
+  VaR_1d_ar <- c(VaR_1d_ar, var_1d)
+  VaR_5d_ar <- c(VaR_5d_ar, var_5d)
+}
+
+```
+
+
+
+```{r}
+# AR(1)-GARCH(1,1), Student-t distribution
+spec_ar_garch_t <- ugarchspec(
+  mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  distribution.model = "std"
+)
+
+fit_ar_garch_t <- ugarchfit(spec_ar_garch_t, returns)
+forecast_ar_garch_t <- ugarchforecast(fit_ar_garch_t, n.ahead = 5)
+sigma_ar_garch_t <- sigma(forecast_ar_garch_t)
+sigma_1d_t <- sigma_ar_garch_t[1]
+sigma_5d_t <- sqrt(sum(sigma_ar_garch_t^2))
+df_t <- coef(fit_ar_garch_t)["shape"]
+
+VaR_1d_t <- c()
+VaR_5d_t <- c()
+
+for (conf in conf_levels) {
+  z <- qt(conf, df = df_t)
+  var_1d <- abs(position_value * z * sigma_1d_t)
+  var_5d <- abs(position_value * z * sigma_5d_t)
+  VaR_1d_t <- c(VaR_1d_t, var_1d)
+  VaR_5d_t <- c(VaR_5d_t, var_5d)
+}
+
+```
+
+
+
+```{r}
+# AR(1)-EGARCH(1,1), Student-t distribution
+spec_ar_egarch_t <- ugarchspec(
+  mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
+  variance.model = list(model = "eGARCH", garchOrder = c(1, 1)),
+  distribution.model = "std"
+)
+
+fit_ar_egarch_t <- ugarchfit(spec_ar_egarch_t, returns)
+forecast_ar_egarch_t <- ugarchforecast(fit_ar_egarch_t, n.ahead = 5)
+sigma_ar_egarch_t <- sigma(forecast_ar_egarch_t)
+sigma_1d_egarch <- sigma_ar_egarch_t[1]
+sigma_5d_egarch <- sqrt(sum(sigma_ar_egarch_t^2))
+df_egarch <- coef(fit_ar_egarch_t)["shape"]
+
+VaR_1d_egarch <- c()
+VaR_5d_egarch <- c()
+
+for (conf in conf_levels) {
+  z <- qt(conf, df = df_egarch)
+  var_1d <- abs(position_value * z * sigma_1d_egarch)
+  var_5d <- abs(position_value * z * sigma_5d_egarch)
+  VaR_1d_egarch <- c(VaR_1d_egarch, var_1d)
+  VaR_5d_egarch <- c(VaR_5d_egarch, var_5d)
+}
+
+```
+
+
+
+```{r}
+VaR_matrix <- rbind(
+  GARCH_11 = c(VaR_1d, VaR_5d),
+  AR_GARCH_11 = c(VaR_1d_ar, VaR_5d_ar),
+  AR_GARCH_11_t = c(VaR_1d_t, VaR_5d_t),
+  AR_EGARCH_11_t = c(VaR_1d_egarch, VaR_5d_egarch)
+)
+
+colnames(VaR_matrix) <- as.vector(outer(conf_labels, c("1d", "5d"), paste, sep = "_"))
+VaR_df <- as.data.frame(round(VaR_matrix, 2))
+
+cat("\n========== All VaR Results (EUR) ==========\n")
+print(VaR_df)
+
+```
+
+
+```{r}
+cat("\n=== Model: GARCH(1,1), Normal ===\n")
+print(coef(fit_garch))
+
+cat("\n=== Model: AR(1)-GARCH(1,1), Normal ===\n")
+print(coef(fit_ar_garch))
+
+cat("\n=== Model: AR(1)-GARCH(1,1), Student-t ===\n")
+print(coef(fit_ar_garch_t))
+
+cat("\n=== Model: AR(1)-EGARCH(1,1), Student-t ===\n")
+print(coef(fit_ar_egarch_t))
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(rugarch)
+setwd("~/Downloads")
+data <- read_csv("NorthrupGrumman.csv")
+head(data)
+data$Close <- as.numeric(gsub("[$]", "", data$`Close/Last`))
+data$Date <- as.Date(data$Date, format = "%m/%d/%Y")
+Returns <- diff(log(data$Close))
+returns <- na.omit(Returns)
+head(returns)
+# Position size and confidence levels
+position_value <- 10000000
+conf_levels <- c(0.90, 0.95, 0.99)
+conf_labels <- c("90", "95", "99")
+```
+
+```{r}
+# ===== Historical Parametric VaR (Normal distribution) =====
+# Based on historical mean and standard deviation
+
+mu_hist <- mean(returns)
+sigma_hist <- sd(returns)
+
+VaR_1d_hist <- c()
+VaR_5d_hist <- c()
+
+for (conf in conf_levels) {
+  z <- qnorm(conf)
+  var_1d <- abs(position_value * (mu_hist + z * sigma_hist))
+  var_5d <- abs(position_value * (5 * mu_hist + z * sigma_hist * sqrt(5)))
+  VaR_1d_hist <- c(VaR_1d_hist, var_1d)
+  VaR_5d_hist <- c(VaR_5d_hist, var_5d)
+}
+
+
+VaR_matrix <- rbind(
+  Historical = c(VaR_1d_hist, VaR_5d_hist),
+  GARCH_11 = c(VaR_1d, VaR_5d),
+  AR_GARCH_11 = c(VaR_1d_ar, VaR_5d_ar),
+  AR_GARCH_11_t = c(VaR_1d_t, VaR_5d_t),
+  AR_EGARCH_11_t = c(VaR_1d_egarch, VaR_5d_egarch)
+)
+
+colnames(VaR_matrix) <- as.vector(outer(conf_labels, c("1d", "5d"), paste, sep = "_"))
+VaR_df <- as.data.frame(round(VaR_matrix, 2))
+
+cat("\n========== All VaR Results (EUR) ==========\n")
+print(VaR_df)
+
+```
+
+
+```{r}
+# Specify GARCH(1,1) model with constant mean and normal distribution
+spec_garch <- ugarchspec(
+  mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  distribution.model = "norm"
+)
+
+# Fit model
+fit_garch <- ugarchfit(spec_garch, returns)
+
+# Forecast next 5 days
+forecast <- ugarchforecast(fit_garch, n.ahead = 5)
+sigma_forecast <- sigma(forecast)
+sigma_1d <- sigma_forecast[1]
+sigma_5d <- sqrt(sum(sigma_forecast^2))  # sum of variances
+
+# Compute VaR for each confidence level
+VaR_1d <- c()
+VaR_5d <- c()
+
+for (conf in conf_levels) {
+  z <- qnorm(conf)  # left-tail quantile (e.g., qnorm(0.01) = -2.33 for 99%)
+  var_1d <- abs(position_value * z * sigma_1d)
+  var_5d <- abs(position_value * z * sigma_5d)
+  VaR_1d <- c(VaR_1d, var_1d)
+  VaR_5d <- c(VaR_5d, var_5d)
+}
+
+# Display results
+VaR_matrix <- matrix(c(VaR_1d, VaR_5d), nrow = 1)
+colnames(VaR_matrix) <- as.vector(outer(conf_labels, c("1d", "5d"), paste, sep = "_"))
+rownames(VaR_matrix) <- c("GARCH(1,1)")
+VaR_df <- as.data.frame(round(VaR_matrix, 2))
+
+cat("====== GARCH(1,1) VaR Results (EUR) ======\n")
+print(VaR_df)
+
+```
+
+
+
+
+```{r}
+# AR(1)-GARCH(1,1), Normal distribution
+spec_ar_garch <- ugarchspec(
+  mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  distribution.model = "norm"
+)
+
+fit_ar_garch <- ugarchfit(spec_ar_garch, returns)
+forecast_ar_garch <- ugarchforecast(fit_ar_garch, n.ahead = 5)
+sigma_ar_garch <- sigma(forecast_ar_garch)
+sigma_1d_ar <- sigma_ar_garch[1]
+sigma_5d_ar <- sqrt(sum(sigma_ar_garch^2))
+
+VaR_1d_ar <- c()
+VaR_5d_ar <- c()
+
+for (conf in conf_levels) {
+  z <- qnorm(conf)
+  var_1d <- abs(position_value * z * sigma_1d_ar)
+  var_5d <- abs(position_value * z * sigma_5d_ar)
+  VaR_1d_ar <- c(VaR_1d_ar, var_1d)
+  VaR_5d_ar <- c(VaR_5d_ar, var_5d)
+}
+
+```
+
+
+
+```{r}
+# AR(1)-GARCH(1,1), Student-t distribution
+spec_ar_garch_t <- ugarchspec(
+  mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  distribution.model = "std"
+)
+
+fit_ar_garch_t <- ugarchfit(spec_ar_garch_t, returns)
+forecast_ar_garch_t <- ugarchforecast(fit_ar_garch_t, n.ahead = 5)
+sigma_ar_garch_t <- sigma(forecast_ar_garch_t)
+sigma_1d_t <- sigma_ar_garch_t[1]
+sigma_5d_t <- sqrt(sum(sigma_ar_garch_t^2))
+df_t <- coef(fit_ar_garch_t)["shape"]
+
+VaR_1d_t <- c()
+VaR_5d_t <- c()
+
+for (conf in conf_levels) {
+  z <- qt(conf, df = df_t)
+  var_1d <- abs(position_value * z * sigma_1d_t)
+  var_5d <- abs(position_value * z * sigma_5d_t)
+  VaR_1d_t <- c(VaR_1d_t, var_1d)
+  VaR_5d_t <- c(VaR_5d_t, var_5d)
+}
+
+```
+
+
+
+```{r}
+# AR(1)-EGARCH(1,1), Student-t distribution
+spec_ar_egarch_t <- ugarchspec(
+  mean.model = list(armaOrder = c(1, 0), include.mean = TRUE),
+  variance.model = list(model = "eGARCH", garchOrder = c(1, 1)),
+  distribution.model = "std"
+)
+
+fit_ar_egarch_t <- ugarchfit(spec_ar_egarch_t, returns)
+forecast_ar_egarch_t <- ugarchforecast(fit_ar_egarch_t, n.ahead = 5)
+sigma_ar_egarch_t <- sigma(forecast_ar_egarch_t)
+sigma_1d_egarch <- sigma_ar_egarch_t[1]
+sigma_5d_egarch <- sqrt(sum(sigma_ar_egarch_t^2))
+df_egarch <- coef(fit_ar_egarch_t)["shape"]
+
+VaR_1d_egarch <- c()
+VaR_5d_egarch <- c()
+
+for (conf in conf_levels) {
+  z <- qt(conf, df = df_egarch)
+  var_1d <- abs(position_value * z * sigma_1d_egarch)
+  var_5d <- abs(position_value * z * sigma_5d_egarch)
+  VaR_1d_egarch <- c(VaR_1d_egarch, var_1d)
+  VaR_5d_egarch <- c(VaR_5d_egarch, var_5d)
+}
+
+```
+
+
+
+```{r}
+VaR_matrix <- rbind(
+  GARCH_11 = c(VaR_1d, VaR_5d),
+  AR_GARCH_11 = c(VaR_1d_ar, VaR_5d_ar),
+  AR_GARCH_11_t = c(VaR_1d_t, VaR_5d_t),
+  AR_EGARCH_11_t = c(VaR_1d_egarch, VaR_5d_egarch)
+)
+
+colnames(VaR_matrix) <- as.vector(outer(conf_labels, c("1d", "5d"), paste, sep = "_"))
+VaR_df <- as.data.frame(round(VaR_matrix, 2))
+
+cat("\n========== All VaR Results (EUR) ==========\n")
+print(VaR_df)
+
+```
+
+
+```{r}
+cat("\n=== Model: GARCH(1,1), Normal ===\n")
+print(coef(fit_garch))
+
+cat("\n=== Model: AR(1)-GARCH(1,1), Normal ===\n")
+print(coef(fit_ar_garch))
+
+cat("\n=== Model: AR(1)-GARCH(1,1), Student-t ===\n")
+print(coef(fit_ar_garch_t))
+
+cat("\n=== Model: AR(1)-EGARCH(1,1), Student-t ===\n")
+print(coef(fit_ar_egarch_t))
+
+
+
+
+
+```
+
+
+
+
+
+
+
