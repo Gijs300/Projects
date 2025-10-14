@@ -18,8 +18,8 @@ library(dplyr)
 library(rugarch)
 
 #Load data
-data <- "C:/Users/gijsn/Desktop/Documents/L3harris.xlsx"
-data<-read_excel(data)
+data <- "C:/Users/gijsn/Desktop/Documents/L3harris.csv"
+data<-read_csvexcel(data)
 head(data)
 
 #Calculate log returns
@@ -251,8 +251,8 @@ print(coef(fit_ar_egarch_t))
 
 ```{r}
 #Load data
-data <- "C:/Users/gijsn/Desktop/Documents/Northropgrumman.xlsx"
-data<-read_excel(data)
+data <- "C:/Users/gijsn/Desktop/Documents/Northropgrumman.csv"
+data<-read_csv(data)
 head(data)
 
 #Calculate log returns
