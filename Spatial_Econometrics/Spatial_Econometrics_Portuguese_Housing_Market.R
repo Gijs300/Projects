@@ -15,9 +15,10 @@ library(mapview)
 library(readxl)
 
 #Load data
-PCAsanddep <- "C:/Users/gijsn/Desktop/Documents/PCAsanddep.xlsx"
-data<-read_excel(PCAsanddep)
-w_matrix<-"C:/Users/gijsn/Desktop/Documents/Wmatrix.xlsx"
+PCAsanddep <- "C:/Users/gijsn/Desktop/Documents/PCAsanddep.csv"
+data <- read_csv("PCAsanddep.csv")
+w_matrix<-"C:/Users/gijsn/Desktop/Documents/Wmatrix.csv"
+w_matrix<-read_csv(w_matrix)
 
 # Convert Spatial weight matrix to listw object
 w_matrix<-W_matrix[,-1]
@@ -167,3 +168,4 @@ robust_results <- cbind(
 )
 
 print(robust_results)
+
