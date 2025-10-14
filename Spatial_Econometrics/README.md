@@ -1,4 +1,4 @@
 Spatial weights matrix explanation:
 Before being able to analyze spatial data, a spatial weights matrix was constructed. The weights matrix constructed in this research is n by n, where n is the number of spatial units, here 278 (municipalities). The matrix has entry 1 if municipality i and j have a common border or vertex, 0 otherwise.
 
-The PDF explains which models are appropriate to use and gives policy recommendations for the Portuguese housing market. Page 1-16 are data description and descriptive statistics (and figures), page 17-24 are outputs of Principal Component Regression, statistical tests and model selection and estimation.
+The PDF can be used as an explanator for which test are conducted, and why certain conclusions follow from outputs. It also explains which models are appropriate to use and gives policy recommendations for the Portuguese housing market. Page 1-16 are data description and descriptive statistics (and figures), page 17-24 are outputs of Principal Component Regression, statistical tests and model selection and estimation.
