@@ -1,0 +1,1 @@
+This project performs Value-at-Risk (VaR) analysis on stock returns for two defense sector companies: L3Harris Technologies and Northrop Grumman. The analysis compares multiple VaR estimation methods to quantify potential losses at different confidence levels.
